@@ -1,12 +1,10 @@
 import re
-
 from math import ceil
 from numbers import Number
+from urllib.parse import parse_qsl
 
 from py3status.composite import Composite
 from py3status.constants import COLOR_NAMES, COLOR_NAMES_EXCLUDED
-
-from urllib.parse import parse_qsl
 
 
 def expand_color(color, default=None, passthrough=False, block=None):
