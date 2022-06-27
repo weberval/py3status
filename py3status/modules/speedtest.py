@@ -199,7 +199,7 @@ class Py3status:
 
     def _set_speedtest_data(self):
         # start
-        self.start_time = time.perf_counter()
+        self.start_time = time.monotonic()
         self.speedtest_data["elapsed"] = True
 
         try:
@@ -218,12 +218,13 @@ class Py3status:
 
         # end
         self.speedtest_data["elapsed"] = False
-        self.speedtest_data["elapsed_time"] = time.perf_counter() - self.start_time
+        self.speedtest_data["elapsed_time"] = time.monotonic() - self.start_time
+        self.thread = None
 
     def speedtest(self):
         if self.speedtest_data.get("elapsed"):
             cached_until = 0
-            self.speedtest_data["elapsed_time"] = time.perf_counter() - self.start_time
+            self.speedtest_data["elapsed_time"] = time.monotonic() - self.start_time
         else:
             cached_until = self.py3.CACHE_FOREVER
             self.py3.storage_set("speedtest_data", self.speedtest_data)
@@ -245,8 +246,6 @@ class Py3status:
             if share:
                 self.py3.command_run(f"xdg-open {share}")
         if button == self.button_refresh:
-            if self.thread and not self.thread.isAlive():
-                self.thread = None
             if self.thread is None:
                 self.thread = Thread(target=self._set_speedtest_data)
                 self.thread.daemon = True
