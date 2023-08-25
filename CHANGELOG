@@ -1,3 +1,59 @@
+version 3.52 (2023-07-29)
+* IMPORTANT: the project has moved from setuptools to pyproject.toml and hatch
+* IMPORTANT: gevent support is now deprecated and removed
+* core: drop gevent support
+
+version 3.51 (2023-06-27)
+* NEW: thanks to Andreas Grapentin, py3status can now run in lots of other containers (tmux, term, dzen2, lemonbar...)
+* IMPORTANT: modules are moving away from the obsolete pydbus library
+* core: implement handling of output_format in py3status for i3bar, dzen2, xmobar, lemonbar, tmux, term, none (#2104), by Andreas Grapentin
+* core: autodetect output_format (#2202), by lasers
+* fix(module): report module post_config_hook errors thx to @lasers (#2208)
+* docs(user): add a section to specify that modules dependencies are up to the users
+* docs(mkdocs): drop mkdocs-simple-hooks closes #2195
+* docs: fix two DeprecationWarning (#2191), by lasers
+* docs(audiosink): fix screenshots (#2194), by lasers
+* docs(autodoc): remove dead code thx to @lasers, closes #2183 (#2193)
+* arch_updates module: add support for pikaur (#2182), by vim
+* arch_updates module: remove cower support (gone) (#2190), by lasers
+* backlight module: drop pydbus, switch to dbus-python
+* bluetooth module: report battery percentage if available (#2185), by Alex Tsitsimpis
+* clock module: added timezone information to times implicitly using local system timezone (#2197), by Andreas Grapentin
+* clock module: minor patch to get the local timezone. (#2189), by Josh Sixsmith
+* diskdata module: fix variable init type
+* diskdata module: make module work on FreeBSD (#2200), by Björn Busse
+* mpd_status module: fix UnboundLocalError (#2199), by Björn Busse
+* ns_checker module: replace query() with resolve() (#2207), by Björn Busse
+* systemd module: drop pydbus, switch to dbus-python
+* vpn_status module: drop pydbus, switch to dbus-python
+
+version 3.50 (2023-04-17)
+* update alpine install doc (#2176), by raspbeguy
+* battery_level module: fix invalid indexing, skip batteries with unavailable info (#2180), by lasers
+* vpn_status module: add wireguard support (#2181), by javiertury
+
+version 3.49 (2023-02-17)
+* do_not_disturb module: use 'makoctl mode' to check current mode. (#2172), by Valdur Kana
+* google_calendar module: add support to configure which google calendar will be used (#2174), by Alex Thomae
+
+version 3.48 (2023-01-14)
+* IMPORTANT: bluetooth module has been replaced by the bluetooth2 code, please migrate
+* python: drop py 3.6 from CI and bump 3.11 (#2166)
+* battery_level module: allow icon to not use charging_character (#2158), by Kevin Pulo
+* bluetooth module: replaced by bluetooth2 as announced on 2022-10
+* check_tcp module: add IPv6 support (#2167), by Björn Busse
+* clock module: migrate to standard zoneinfo with 3.7, 3.8 support. (#2155), by Valdur Kana
+* events: change the reading timeout to infinity (#2153), by Austin Lund
+* kdeconnector module: Active notifications were always 1. (#2170), by Valdur Kana
+* kdeconnector module: refactor to use dbus signals to update module (#2168), by Valdur Kana
+* kdeconnector module: show cell network type and strength. (#2162) (#2163), by Valdur Kana
+* mpris module: fix error self.parent on Py3status module not found. (#2169), by Valdur Kana
+* timewarrior module: remove dependency on dateutil (#2161), by Rasmus Rendal
+* volume_status module: amixer scontrols uses device and card parameter. (#2152), by Valdur Kana
+* volume_status module: deprecate start_delay parameter
+* volume_status module: smarter initialization logic with retry, remove start_delay setting (#2165), by Joan Bruguera
+* window module: window without title will not produce error on i3msg mode, by Valdur Kana* core: add inhibition timer on misbehaving signals
+
 version 3.47 (2022-10-02)
 * INFORMATION: the upcoming bluetooth module has been merged as bluetooth2, users are encouraged to switch
 * core: simpler logic to inhibit out of order signaling (#2147)

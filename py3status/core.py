@@ -1,24 +1,24 @@
-import pkg_resources
 import sys
 import time
-
 from collections import deque
-from json import dumps
 from pathlib import Path
 from pprint import pformat
-from signal import signal, Signals, SIGTERM, SIGUSR1, SIGTSTP, SIGCONT
+from signal import SIGCONT, SIGTERM, SIGTSTP, SIGUSR1, Signals, signal
 from subprocess import Popen
+from syslog import LOG_ERR, LOG_INFO, LOG_WARNING, syslog
 from threading import Event, Thread
-from syslog import syslog, LOG_ERR, LOG_INFO, LOG_WARNING
-from traceback import extract_tb, format_tb, format_stack
+from traceback import extract_tb, format_stack, format_tb
+
+import pkg_resources
 
 from py3status.command import CommandServer
 from py3status.events import Events
 from py3status.formatter import expand_color
 from py3status.helpers import print_stderr
 from py3status.i3status import I3status
-from py3status.parse_config import process_config
 from py3status.module import Module
+from py3status.output import OutputFormat
+from py3status.parse_config import process_config
 from py3status.profiling import profile
 from py3status.udev_monitor import UdevMonitor
 
@@ -217,9 +217,7 @@ class Common:
                     if found:
                         break
             # all done!  create our message.
-            msg = "{} ({}) {} line {}.".format(
-                msg, exc_type.__name__, filename, line_no
-            )
+            msg = "{} ({}) {} line {}.".format(msg, exc_type.__name__, filename, line_no)
         except:  # noqa e722
             # something went wrong report what we can.
             msg = f"{msg}."
@@ -424,23 +422,6 @@ class Py3statusWrapper:
         if self.timeout_due is not None:
             return max(0, self.timeout_due - time.monotonic())
 
-    def gevent_monkey_patch_report(self):
-        """
-        Report effective gevent monkey patching on the logs.
-        """
-        try:
-            import gevent.socket
-            import socket
-
-            if gevent.socket.socket is socket.socket:
-                self.log("gevent monkey patching is active")
-                return True
-            else:
-                self.notify_user("gevent monkey patching failed.")
-        except ImportError:
-            self.notify_user("gevent is not installed, monkey patching failed.")
-        return False
-
     def get_user_modules(self):
         """Mapping from module name to relevant objects.
 
@@ -566,8 +547,7 @@ class Py3statusWrapper:
                     out = f.readline()
             except OSError:
                 self.log(
-                    "Unable to read git HEAD. "
-                    "Use python git package for more repo information"
+                    "Unable to read git HEAD. " "Use python git package for more repo information"
                 )
                 return
             branch = "/".join(out.strip().split("/")[2:])
@@ -603,15 +583,20 @@ class Py3statusWrapper:
         if self.config["debug"]:
             self.log(f"py3status started with config {self.config}")
 
-        if self.config["gevent"]:
-            self.is_gevent = self.gevent_monkey_patch_report()
-        else:
-            self.is_gevent = False
-
         # read i3status.conf
         config_path = self.config["i3status_config_path"]
         self.log("config file: {}".format(self.config["i3status_config_path"]))
         self.config["py3_config"] = process_config(config_path, self)
+
+        # autodetect output_format
+        output_format = self.config["py3_config"]["general"]["output_format"]
+        if output_format is None:
+            if sys.stdout.isatty():
+                print("py3status: trying to auto-detect output_format setting")
+                print('py3status: auto-detected "term"')
+                output_format = "term"
+
+        self.config["py3_config"]["general"]["output_format"] = output_format or "i3bar"
 
         # read resources
         if "resources" in str(self.config["py3_config"].values()):
@@ -648,9 +633,7 @@ class Py3statusWrapper:
                 time.sleep(0.1)
         if self.config["debug"]:
             self.log(
-                "i3status thread {} with config {}".format(
-                    i3s_mode, self.config["py3_config"]
-                )
+                "i3status thread {} with config {}".format(i3s_mode, self.config["py3_config"])
             )
 
         # add i3status thread monitoring task
@@ -683,9 +666,7 @@ class Py3statusWrapper:
         # make sure we honor custom i3bar protocol stop/resume signals
         # while providing users a way to opt out from that feature
         # using the 0 value as specified by the i3bar protocol
-        custom_stop_signal = (
-            self.config["py3_config"].get("py3status", {}).get("stop_signal")
-        )
+        custom_stop_signal = self.config["py3_config"].get("py3status", {}).get("stop_signal")
         if custom_stop_signal is not None:
             try:
                 # 0 is a special value for i3bar protocol, use it as-is
@@ -721,6 +702,20 @@ class Py3statusWrapper:
         if self.py3_modules:
             # load and spawn i3status.conf configured modules threads
             self.load_modules(self.py3_modules, user_modules)
+
+        # determine the target output format
+        self.output_format = OutputFormat.instance_for(
+            self.config["py3_config"]["general"]["output_format"]
+        )
+
+        # determine the output separator, if needed
+        color_separator = None
+        if self.config["py3_config"]["general"]["colors"]:
+            color_separator = self.config["py3_config"]["general"]["color_separator"]
+        self.output_format.format_separator(
+            self.config["py3_config"]["general"].get("separator", None),
+            color_separator,
+        )
 
     def notify_user(
         self,
@@ -767,9 +762,7 @@ class Py3statusWrapper:
         if msg_hash in self.notified_messages:
             return
         elif module_name:
-            log_msg = 'Module `{}` sent a notification. "{}: {}"'.format(
-                module_name, title, msg
-            )
+            log_msg = 'Module `{}` sent a notification. "{}: {}"'.format(module_name, title, msg)
             self.log(log_msg, level)
         else:
             self.log(msg, level)
@@ -1015,14 +1008,11 @@ class Py3statusWrapper:
                     # Color: substitute the config defined color
                     if "color" not in output:
                         output["color"] = color
-        # Create the json string output.
-        return ",".join(dumps(x) for x in outputs)
+        # format output and return
+        return self.output_format.format(outputs)
 
     def i3bar_stop(self, signum, frame):
-        if (
-            self.next_allowed_signal == signum
-            and time.monotonic() > self.inhibit_signal_ts
-        ):
+        if self.next_allowed_signal == signum and time.monotonic() > self.inhibit_signal_ts:
             self.log(f"received stop_signal {Signals(signum).name}")
             self.i3bar_running = False
             # i3status should be stopped
@@ -1034,10 +1024,7 @@ class Py3statusWrapper:
             self.inhibit_signal_ts = time.monotonic() + 0.1
 
     def i3bar_start(self, signum, frame):
-        if (
-            self.next_allowed_signal == signum
-            and time.monotonic() > self.inhibit_signal_ts
-        ):
+        if self.next_allowed_signal == signum and time.monotonic() > self.inhibit_signal_ts:
             self.log(f"received resume signal {Signals(signum).name}")
             self.i3bar_running = True
             self.wake_modules()
@@ -1089,17 +1076,13 @@ class Py3statusWrapper:
         # items in the bar
         output = [None] * len(py3_config["order"])
 
-        write = sys.__stdout__.write
-        flush = sys.__stdout__.flush
-
         # start our output
         header = {
             "version": 1,
             "click_events": self.config["click_events"],
             "stop_signal": self.stop_signal or 0,
         }
-        write(dumps(header))
-        write("\n[[]\n")
+        self.output_format.write_header(header)
 
         update_due = None
         # main loop
@@ -1126,8 +1109,5 @@ class Py3statusWrapper:
                         # store the output as json
                         output[index] = out
 
-                # build output string
-                out = ",".join(x for x in output if x)
-                # dump the line to stdout
-                write(f",[{out}]\n")
-                flush()
+                # build output string and dump to stdout
+                self.output_format.write_line(output)

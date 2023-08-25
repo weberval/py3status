@@ -109,9 +109,7 @@ class Dunst(Notification):
 
     def toggle(self, state):
         if self.has_dunstctl:
-            self.parent.py3.command_run(
-                "dunstctl set-paused {}".format(str(state).lower())
-            )
+            self.parent.py3.command_run("dunstctl set-paused {}".format(str(state).lower()))
         elif state:
             # pause
             self.parent.py3.command_run("pkill -SIGUSR1 dunst")
@@ -129,8 +127,18 @@ class Mako(Notification):
     Mako Notification.
     """
 
+    # From version mako 1.7 we can use "makoctl mode"
     def setup(self, parent):
-        self.toggle(parent.state)
+        self.has_makoctl_mode = bool(
+            self.parent.py3.check_commands(["makoctl"])
+        ) and not self.parent.py3.command_run("makoctl mode")
+
+    def get_state(self):
+        if self.has_makoctl_mode:
+            state = self.parent.py3.command_output("makoctl mode")
+            return state.strip() == "do-not-disturb"
+        else:
+            return self.parent.state
 
     def toggle(self, state):
         if state is True:

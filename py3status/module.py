@@ -1,16 +1,16 @@
 import inspect
 import time
-
 from collections import OrderedDict
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from random import randint
+from types import FunctionType
 
 from py3status.composite import Composite
 from py3status.constants import MARKUP_LANGUAGES, ON_ERROR_VALUES, POSITIONS
-from py3status.py3 import Py3, ModuleErrorException
-from py3status.profiling import profile
 from py3status.formatter import Formatter
+from py3status.profiling import profile
+from py3status.py3 import ModuleErrorException, Py3
 
 
 def make_quotes(options):
@@ -149,12 +149,10 @@ class Module:
 
                 self.error_messages = [
                     self.module_nice_name,
-                    "{}: {}".format(
-                        self.module_nice_name, str(e) or e.__class__.__name__
-                    ),
+                    f"{e}",
                 ]
-                self.runtime_error(self.error_messages[0], "post_config_hook")
-                msg = f"Exception in `{self.module_full_name}` post_config_hook()"
+                self.runtime_error(self.error_messages[1], "post_config_hook")
+                msg = f"Exception in `{self.module_full_name}` post_config_hook() : {self.error_messages}"
                 self._py3_wrapper.report_exception(msg, notify_user=False)
                 self._py3_wrapper.log(f"terminating module {self.module_full_name}")
         self.enabled = True
@@ -174,7 +172,7 @@ class Module:
         # only show first line of error
         msg = msg.splitlines()[0]
 
-        errors = [self.module_nice_name, f"{self.module_nice_name}: {msg}"]
+        errors = [self.module_nice_name, f"{self.module_nice_name}[{method}]: {msg}"]
 
         # if we have shown this error then keep in the same state
         if self.error_messages != errors:
@@ -201,7 +199,11 @@ class Module:
             "name": self.module_name,
         }
         for method in self.methods.values():
-            if method_affected and method["method"] != method_affected:
+            if (
+                method_affected
+                and method["method"] != method_affected
+                and method_affected != "post_config_hook"
+            ):
                 continue
 
             method["last_output"] = [error]
@@ -337,11 +339,17 @@ class Module:
 
         separator = fn(self.module_full_name, "separator")
         if not hasattr(separator, "none_setting"):
-            if not isinstance(separator, bool):
-                err = "Invalid `separator` attribute, should be a boolean. "
-                err += f"Got `{separator}`."
-                raise TypeError(err)
-            self.i3bar_module_options["separator"] = separator
+            # HACK: separator is a valid setting in the general section
+            # of the configuration. but it's a string, not a boolean.
+            # revisit how i3status and py3status differ in this regard.
+            # if not isinstance(separator, bool):
+
+            #     err = "Invalid `separator` attribute, should be a boolean. "
+            #     err += f"Got `{separator}`."
+            #     raise TypeError(err)
+            # self.i3bar_module_options["separator"] = separator
+            if isinstance(separator, bool):
+                self.i3bar_module_options["separator"] = separator
 
         separator_block_width = fn(self.module_full_name, "separator_block_width")
         if not hasattr(separator_block_width, "none_setting"):
@@ -536,9 +544,7 @@ class Module:
 
             # padding
             if left:
-                response["composite"][0]["full_text"] = (
-                    left + response["composite"][0]["full_text"]
-                )
+                response["composite"][0]["full_text"] = left + response["composite"][0]["full_text"]
             if right:
                 response["composite"][-1]["full_text"] += right
 
@@ -593,15 +599,12 @@ class Module:
             # load from py3status provided modules
             else:
                 self._py3_wrapper.log(
-                    'loading module "{}" from py3status.modules.{}'.format(
-                        module, self.module_name
-                    )
+                    'loading module "{}" from py3status.modules.{}'.format(module, self.module_name)
                 )
                 self.module_class = self.load_from_namespace(self.module_name)
 
         class_inst = self.module_class
         if class_inst:
-
             try:
                 # containers have items attribute set to a list of contained
                 # module instance names.  If there are no contained items then
@@ -659,9 +662,7 @@ class Module:
                         param = item.get("param")
                         if param:
                             msg = f"`{param}` {msg}"
-                        msg = "DEPRECATION WARNING: {} {}".format(
-                            self.module_full_name, msg
-                        )
+                        msg = "DEPRECATION WARNING: {} {}".format(self.module_full_name, msg)
                         self._py3_wrapper.log(msg)
 
                 if "rename" in deprecated:
@@ -695,9 +696,7 @@ class Module:
                             format_string = mod_config.get(format_param)
                             if not format_string:
                                 continue
-                            format = Formatter().update_placeholders(
-                                format_string, placeholders
-                            )
+                            format = Formatter().update_placeholders(format_string, placeholders)
                             mod_config[format_param] = format
 
                 if "update_placeholder_format" in deprecated:
@@ -723,10 +722,7 @@ class Module:
                         substitute = item["substitute"]
                         substitute_param = substitute["param"]
                         substitute_value = substitute["value"]
-                        if (
-                            mod_config.get(param) == value
-                            and substitute_param not in mod_config
-                        ):
+                        if mod_config.get(param) == value and substitute_param not in mod_config:
                             mod_config[substitute_param] = substitute_value
                             deprecation_log(item)
                 if "function" in deprecated:
@@ -845,8 +841,8 @@ class Module:
                 if method.startswith("_"):
                     continue
                 else:
-                    m_type = type(getattr(class_inst, method))
-                    if "method" in str(m_type):
+                    m_attr = inspect.getattr_static(class_inst, method)
+                    if isinstance(m_attr, FunctionType):
                         params_type = self._params_type(method, class_inst)
                         if method == "on_click":
                             self.click_events = params_type
@@ -929,7 +925,6 @@ class Module:
             cache_time = None
             # execute each method of this module
             for meth, my_method in self.methods.items():
-
                 # always check py3status is running
                 if not self._py3_wrapper.running:
                     break

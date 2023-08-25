@@ -101,19 +101,20 @@ SAMPLE OUTPUT
     {'color': '#00FF00', 'full_text': u'Happy Mondays - Fat Lady Wrestlers'}
 ]
 """
-from datetime import timedelta
-from dbus.mainloop.glib import DBusGMainLoop
-from gi.repository import GLib
-from threading import Thread
 import re
 import sys
-from dbus import SessionBus, DBusException
-from mpris2 import Player as dPlayer, MediaPlayer2 as dMediaPlayer2
-from mpris2 import get_players_uri, Interfaces
-from mpris2.types import Metadata_Map
+from datetime import timedelta
 from enum import IntEnum
+from threading import Thread
 
-STRING_GEVENT = "this module does not work with gevent"
+from dbus import DBusException, SessionBus
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GLib
+from mpris2 import Interfaces
+from mpris2 import MediaPlayer2 as dMediaPlayer2
+from mpris2 import Player as dPlayer
+from mpris2 import get_players_uri
+from mpris2.types import Metadata_Map
 
 
 class STATE(IntEnum):
@@ -148,9 +149,7 @@ class Player:
         self._player_shortname = name_from_id
         self._dPlayer = dPlayer(dbus_interface_info={"dbus_uri": player_id})
         self._full_name = f"{self._identity} {self._identity_index}"
-        self._hide_non_canplay = (
-            self._player_shortname in self.parent.player_hide_non_canplay
-        )
+        self._hide_non_canplay = self._player_shortname in self.parent.player_hide_non_canplay
 
         self._placeholders = {
             "player": self._identity,
@@ -207,9 +206,9 @@ class Player:
                 }
 
         if buttons.get("toggle"):
-            buttons["toggle"]["full_text"] = self.parent._state_icon_color_map[
-                self.state
-            ]["toggle_icon"]
+            buttons["toggle"]["full_text"] = self.parent._state_icon_color_map[self.state][
+                "toggle_icon"
+            ]
 
         self._buttons = buttons
 
@@ -278,9 +277,7 @@ class Player:
             if artist:
                 self._metadata["artist"] = artist[0]
 
-            self._metadata["length"] = self._get_time_str(
-                metadata.get(Metadata_Map.LENGTH)
-            )
+            self._metadata["length"] = self._get_time_str(metadata.get(Metadata_Map.LENGTH))
 
             self._metadata["nowplaying"] = metadata.get("vlc:nowplaying", None)
 
@@ -389,8 +386,6 @@ class Py3status:
     state_stop = "\u25a1"
 
     def post_config_hook(self):
-        if self.py3.is_gevent():
-            raise Exception(STRING_GEVENT)
         self._name_owner_change_match = None
         self._kill = False
         self._mpris_players: dict[Player] = {}
@@ -487,10 +482,7 @@ class Py3status:
                 self._format_contains_control_buttons = True
                 self._used_can_properties.append(value["clickable"])
 
-        if (
-            len(self.player_hide_non_canplay)
-            and "CanPlay" not in self._used_can_properties
-        ):
+        if len(self.player_hide_non_canplay) and "CanPlay" not in self._used_can_properties:
             self._used_can_properties.append("CanPlay")
 
         self._format_contains_time = self.py3.format_contains(self.format, "time")
@@ -668,7 +660,7 @@ class Py3status:
     def kill(self):
         self._kill = True
         if self._name_owner_change_match:
-            self.parent._dbus._clean_up_signal_match(self._name_owner_change_match)
+            self._dbus._clean_up_signal_match(self._name_owner_change_match)
 
     def mpris(self):
         """
@@ -785,9 +777,7 @@ class Py3status:
                         if order_asc:
                             next_index = current_player_index % len(switchable_players)
                         else:
-                            next_index = (current_player_index - 1) % len(
-                                switchable_players
-                            )
+                            next_index = (current_player_index - 1) % len(switchable_players)
 
                         self._set_data_entry_point_by_name_key(
                             switchable_players[next_index], update=False

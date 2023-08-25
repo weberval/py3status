@@ -1,5 +1,4 @@
 import time
-
 from ast import literal_eval
 from sys import argv
 from threading import Event
@@ -35,7 +34,6 @@ class MockPy3statusWrapper:
         self.lock = Event()
         self.output_modules = {}
         self.running = True
-        self.is_gevent = False
 
         self.lock.set()
 
@@ -61,7 +59,6 @@ class MockPy3statusWrapper:
 
 
 def module_test(module_class, config=None):
-
     if not config:
         config = {}
 

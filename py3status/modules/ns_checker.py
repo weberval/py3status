@@ -35,8 +35,9 @@ SAMPLE OUTPUT
 {'full_text': '10 NS OK'}
 """
 
-import dns.resolver
 import socket
+
+import dns.resolver
 
 
 class Py3status:
@@ -72,7 +73,7 @@ class Py3status:
         if self.resolvers:
             my_resolver.nameservers = self.resolvers
 
-        my_ns = my_resolver.query(self.domain, "NS")
+        my_ns = my_resolver.resolve(self.domain, "NS")
 
         # Insert each NS ip address in nameservers
         for ns in my_ns:
@@ -84,7 +85,7 @@ class Py3status:
         for ns in nameservers:
             my_resolver.nameservers = [ns]
             try:
-                my_resolver.query(self.domain, "A")
+                my_resolver.resolve(self.domain, "A")
                 count_ok += 1
             except:  # noqa e722
                 count_nok += 1

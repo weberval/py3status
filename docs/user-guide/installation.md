@@ -49,7 +49,7 @@ $ emerge -a py3status
 
 ## Alpine Linux
 
-Currently available on Edge version of Alpine. Make sure you enabled the community repository, then:
+In community repository since Alpine Linux 3.17.
 
 ```bash
 $ apk add py3status
@@ -63,7 +63,6 @@ $ pip install py3status
 
 There are optional requirements that you could find useful:
 
-- `py3status[gevent]` for gevent support.
 - `py3status[udev]` for udev support.
 
 Or if you want everything:

@@ -2,9 +2,9 @@ import argparse
 import os
 import subprocess
 from pathlib import Path
+from platform import python_version
 from shutil import which
 
-from platform import python_version
 from py3status.version import version
 
 
@@ -87,13 +87,6 @@ def parse_cli_args():
         "--debug",
         action="store_true",
         help="enable debug logging in syslog or log file if --log-file option is passed",
-    )
-    parser.add_argument(
-        "-g",
-        "--gevent",
-        action="store_true",
-        dest="gevent",
-        help="enable gevent monkey patching",
     )
     parser.add_argument(
         "-i",

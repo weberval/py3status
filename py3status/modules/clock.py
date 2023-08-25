@@ -189,10 +189,7 @@ class Py3status:
         """
         # special Local timezone
         if tz == "Local":
-            try:
-                return zoneinfo.ZoneInfo("localtime")
-            except zoneinfo.ZoneInfoNotFoundError:
-                return "?"
+            return None
         # get the timezone
         try:
             zone = zoneinfo.ZoneInfo(tz)
@@ -225,7 +222,6 @@ class Py3status:
             self._change_active(1)
 
     def clock(self):
-
         # cycling
         if self.cycle and time.time() >= self._cycle_time:
             self._change_active(1)
@@ -251,7 +247,12 @@ class Py3status:
                     idx = int(h / self.block_hours * len(self.blocks))
                     icon = self.blocks[idx]
 
-                timezone = zone.key
+                # special case for handling Local timezone
+                if zone is None:
+                    t = t.astimezone()
+                    timezone = t.tzname()
+                else:
+                    timezone = zone.key
                 tzname = timezone.split("/")[-1].replace("_", " ")
 
                 if self.multiple_tz:

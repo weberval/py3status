@@ -17,6 +17,7 @@ Requires:
     trizen: lightweight pacman wrapper and AUR helper
     yay: yet another yogurt. pacman wrapper and aur helper written in go
     paru: feature packed AUR helper
+    pikaur: pacman wrapper and AUR helper written in python
 
 @author Iain Tatch <iain.tatch@gmail.com>
 @license BSD
@@ -45,9 +46,7 @@ class Py3status:
     def post_config_hook(self):
         helper = {
             "pacman": self.py3.check_commands(["checkupdates"]),
-            "aur": self.py3.check_commands(
-                ["auracle", "trizen", "yay", "cower", "paru"]
-            ),
+            "aur": self.py3.check_commands(["auracle", "trizen", "yay", "paru", "pikaur"]),
         }
         if self.format:
             placeholders = self.py3.get_placeholders_list(self.format)
@@ -88,13 +87,6 @@ class Py3status:
         except self.py3.CommandError as ce:
             return None if ce.error else 0
 
-    def _get_cower_updates(self):
-        try:
-            self.py3.command_output(["cower", "-u"])
-            return None
-        except self.py3.CommandError as ce:
-            return len(ce.output.splitlines())
-
     def _get_trizen_updates(self):
         try:
             updates = self.py3.command_output(["trizen", "-Suaq"])
@@ -112,6 +104,13 @@ class Py3status:
     def _get_paru_updates(self):
         try:
             updates = self.py3.command_output(["paru", "-Qua"])
+            return len(updates.splitlines())
+        except self.py3.CommandError as ce:
+            return None if ce.error else 0
+
+    def _get_pikaur_updates(self):
+        try:
+            updates = self.py3.command_output(["pikaur", "-Qua"])
             return len(updates.splitlines())
         except self.py3.CommandError as ce:
             return None if ce.error else 0

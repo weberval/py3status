@@ -68,10 +68,12 @@ stopped
 import datetime
 import re
 import socket
-from py3status.composite import Composite
-from mpd import MPDClient, CommandError, ConnectionError
 from threading import Thread
 from time import sleep
+
+from mpd import CommandError, ConnectionError, MPDClient
+
+from py3status.composite import Composite
 
 
 def song_attr(song, attr):
@@ -256,8 +258,7 @@ class Py3status:
                     text = "Failed to authenticate to mpd!"
                     self._get_mpd(disconnect=True)
 
-                state = None
-                self.current_status = (text, status)
+                self.current_status = (text, None)
                 return
             finally:
                 self.py3.update()  # to propagate error message

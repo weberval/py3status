@@ -26,12 +26,14 @@ audiosink {
 }
 ```
 
-SAMPLE OUTPUT
-{'full_text': 'Dock'}
-{'full_text': 'Int'}
-
 @author Jens Brandt <py3status@brandt-george.de>
 @license BSD
+
+SAMPLE OUTPUT
+{'full_text': 'Dock'}
+
+int
+{'full_text': 'Int'}
 """
 
 import os
@@ -74,7 +76,7 @@ class Py3status:
         # filter for not ignored (or active) devices
         state = list(
             filter(
-                lambda d: (not d["name"] in self.sinks_to_ignore) or d["is_active"],
+                lambda d: (d["name"] not in self.sinks_to_ignore) or d["is_active"],
                 state,
             )
         )
